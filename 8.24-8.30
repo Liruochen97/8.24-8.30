@@ -1,0 +1,138 @@
+##根据数值设定阴影颜色
+cb<-subset(climate,Source=="Berkeley")
+cb$v[cb$Anomaly10y>=0]<-"pos"
+cb$v[cb$Anomaly10y<0]<-"neg"
+ggplot(cb,aes(x=Year,y=Anomaly10y,fill=v))+geom_area()+geom_line()+geom_hline(yintercept=0)
+##插值
+intercp<-approx(cb$Year,cb$Anomaly10y,n=1000) ##将数据插值到1000个点左右，以使绘图结果美观
+cbi<-data.frame(Year=intercp$x,Anomaly10y=intercp$y)
+cbi$v[cbi$Anomaly10y>=0]<-"pos"
+cbi$v[cbi$Anomaly10y<0]<-"neg"
+ggplot(cbi,aes(x=Year,y=Anomaly10y,fill=v))+geom_area()+geom_line()+geom_hline(yintercept=0)
+##绘制相关矩阵图
+library(corrplot)
+mcor<-cor(mtcars) ##需先将不能用来计算的列剔除，缺失值处理可用“use=complete.obs”或“use=pairwise.complete.obs”
+corrplot(mcor)
+corrplot(mcor,method="shade",shade.col=NA,tl.col="black",tl.srt=45) ##以方格形式作图，去除格子中的条纹，文本颜色为黑色，角度为45度
+##绘制函数曲线
+ggplot(data.frame(x=c(-3,3)),aes(x=x))+  ##设定绘图范围
+stat_function(fun=dnorm) ##绘制正态分布曲线
+ggplot(data.frame(x=c(-3,3)),aes(x=x))+ 
+stat_function(fun=dt,args=list(df=2))  ##绘制需要传参的函数图形
+myfun<-function(xvar) {1/(1+exp(-xvar+10))}
+ggplot(data.frame(x=c(0,20)),aes(x=x))+
+stat_function(fun=myfun) ##绘制自定义函数曲线，函数第一个参数必须是x轴的值，必须返回y轴的值
+##在函数曲线下添加阴影
+dnorm_limit<-function(x)
+{y<-dnorm(x)
+y[x<=0|x>2]<-NA
+return(y)} ##编辑函数将目标函数的x范围外的值替换为NA
+ggplot(data.frame(x=c(-3,3)),aes(x=x))+
+stat_function(fun=dnorm_limit,geom="area",fill="blue",alpha=.2)+
+stat_function(fun=dnorm)
+##绘制网络图
+library(igraph)
+gd<-graph(c(1,2,2,3,2,4,1,4,5,5,3,6))  ##指定一个有向图的边
+plot(gd)
+gu<-graph(c(1,2,2,3,2,4,1,4,5,5,3,6),directed=FALSE) ##指定一个无向图的边
+plot(gu)
+plot(gu,vertex.label=NA) ##不画标签
+g<-graph.data.frame(madmen2,directed=TRUE)  ##从madmen2数据集中生成图对象
+par(mar=c(0,0,0,0)) ##移除多余的空白边
+plot(g,layout=layout.fruchterman.reingold,vertex.size=8,edge.arrow.size=.5,vertex.label=NA)
+plot(g,layout=layout.circle,vertex.size=8,edge.arrow.size=.5,vertex.label=NA) ##换一种布局
+##在网络图中使用文本标签
+m<-madmen[1:nrow(madmen)%%2==1,] ##保留奇数行
+g<-graph.data.frame(m,directed=FALSE)
+plot(g,layout=layout.fruchterman.reingold,
+vertex.size=8,
+vertex.label=V(g)$name,  ##设置文本标签
+vertex.label.cex=.8,
+vertex.label.dist=.4, ##使标签和节点的位置错开
+vertex.label.colour="black")
+##也可修改绘图对象，并且给边设置参数
+V(g)$size<-4
+V(g)$label<-V(g)$name
+V(g)$label.cex<-.8
+V(g)$label.dist<-.4
+V(g)$label.colour<-"black"
+plot(g)
+E(g)[c(2,11,19)]$label<-"M"
+E(g)$color<-"grey70"
+E(g)[c(2,11,19)]$color<-"red"  ##绘制网络图时默认为随机布局，可指定种子数或布局算法来改变布局
+##绘制热图
+pres_rating<-data.frame(
+rating=as.numeric(presidents),
+year=as.numeric(floor(time(presidents))),
+quarter=as.numeric(cycle(presidents))) ##将数据转化为ggplot可用的数据框格式
+ggplot(pres_rating,aes(x=year,y=quarter,fill=rating))+
+geom_tile()
+ggplot(pres_rating,aes(x=year,y=quarter,fill=rating))+
+geom_raster() ##效率更高
+ggplot(pres_rating,aes(x=year,y=quarter,fill=rating))+
+geom_raster() +
+scale_x_continuous(breaks=seq(1940,1976,by=4))+ ##每四年添加一个坐标刻度
+scale_y_reverse()+ ##反转y轴
+scale_fill_gradient2(midpoint=50,mid="grey70",limits=c(0,100)) ##手动设置调色板
+##绘制谱系图
+c2<-subset(countries,Year==2009) 
+c2<-c2[complete.cases(c2),] ##去掉含有NA的行
+set.seed(201)
+c2<-c2[sample(1:nrow(c2),25),]  ##随机选取2009年的25个数据
+rownames(c2)<-c2$Name ##重命名行名
+c2<-c2[4:7] ##选取作图所需数据
+c3<-scale(c2) ##标准化数据
+hc<-hclust(dist(c3)) ##dist计算距离，默认为euclidean，可更换为maximum,manhattan等
+plot(hc,hang=-1) ##绘制谱系图，文本对齐，可使用method指令更换默认算法complete为ward,single等
+##绘制QQ图
+qqnorm(heightweight$heightIn) ##与正态分布比较并赋予一个数值向量
+qqline(heightweight$heightIn) ##理论分布，比较两图偏差大小，偏差越大越不符合正态分布
+##绘制经验累积分布函数图
+ggplot(heightweight,aes(x=heightIn))+
+stat_ecdf()
+##创建马赛克图
+library(vcd)
+ftable(UCBAdmissions) ##平铺显示列联表，使数据易读
+mosaic(~Admit+Gender+Dept,data=UCBAdmissions) ##按Admit，Gender，Dept的顺序分割数据
+mosaic(~Dept+Gender+Admit,data=UCBAdmissions,
+hightlighting="Admit",hightlighting_fill=c("lightblue","pink"),  ##指定高亮变量
+direction=c("v","h","v"))  ##指定水平或垂直切割  
+##绘制饼图
+fold<-table(survey$Fold)  ##得到fold变量每个水平的频数
+pie(fold) ##或
+pie(c(99,18,120),labels=c("L on R","Neither","R on L"))
+##创建地图
+library(maps)
+states_map<-map_data("state") ##美国地图数据
+ggplot(states_map,aes(x=long,y=lat,group=group))+ ##x轴为纬度，y轴为经度，group为每个多边形的分组变量
+geom_polygon(fill="white",colour="black")  ##设置填充颜色
+ggplot(states_map,aes(x=long,y=lat,group=group))+
+geom_path()+coord_map("mercator")  ##没有填充，使用墨卡托投影
+world_map<-map_data("world")
+sort(unique(world_map$region)) ##显示各区域名称
+##绘制各区域地图
+x<-map_data("world",region=c("China","Mongolia"))
+ggplot(x,aes(x=long,y=lat,group=group,fill=region))+
+geom_polygon(colour="black")+
+scale_fill_brewer(palette="Set2")+ ##自定义调色盘
+scale_y_continuous(limits=c(15,55))+
+scale_x_continuous(limits=c(70,140))
+##绘制等值区域图
+crimes<-data.frame(state=tolower(rownames(USArrests)),USArrests) ##把数据集转换成正确格式
+library(maps)
+states_map<-map_data("state")
+crime_map<-merge(states_map,crimes,by.x="region",by.y="state") ##合并数据
+crime_map<-arrange(crime_map,group,order) ##合理排序，以便于画图
+ggplot(crime_map,aes(x=long,y=lat,group=group,fill=Assault))+geom_polygon(colour="black")+coord_map("polyconic")
+##基于空间数据格式创建地图（shapefile文件可在网上下载）
+library(maptools)
+china_shp<-readShapePoly("gadm36_CHN_1.shp") ##载入空间数据
+china_map<-fortify(china_shp)  ##转化成数据框
+ggplot(china_shp,aes(x=long,y=lat,group=group))+geom_path() ##画图
+##输出图形为PDF矢量文件（SVG，WMF类似）
+pdf("myplot.pdf",width=4,height=4)  ##创建文件并命名，指定高度宽度，默认单位为英寸，也可使用"units="cm""改变单位
+print(ggplot(mtcars,aes(x=mpg,y=disp))+geom_point())  ##画图并输出
+dev.off() ##关闭文件
+##输出图形为点阵（PNG/TIFF）文件
+ggplot(mtcars,aes(x=wt,y=mpg))+geom_point()
+ggsave("myplot.png",width=8,height=8,unit="cm",dpi=300)  ##可以指定分辨率
